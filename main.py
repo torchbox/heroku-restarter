@@ -30,6 +30,10 @@ class WebhookRequestHandler(BaseHTTPRequestHandler):
 def handle_webhook(body):
     """ Given the body of a webhook from Papertrail, determine 
     which dynos are affected and trigger restarts if applicable """
+    saved_search_name = body["saved_search"]["name"]
+    logger.info(
+        f"Received webhook from Papertrail for saved search {saved_search_name}"
+    )
     events = body["events"]
     problem_dynos = []
     for event in events:
@@ -41,6 +45,8 @@ def handle_webhook(body):
     for dyno in problem_dynos:
         if dyno.app in WHITELISTED_RESTARTABLE_APPS:
             restart_dyno(dyno)
+        else:
+            logger.info("Dyno {dyno.app} {dyno.dyno} is timing out but is not whitelisted for restarting")
 
 
 def parse_dyno_from_event(event):
