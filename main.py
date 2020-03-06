@@ -4,9 +4,12 @@ from urllib.parse import parse_qs
 from collections import namedtuple
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import http.client
+import logging
+
+logger = logging.getLogger(__name__)
 
 HEROKU_API_KEY = os.environ.get("HEROKU_API_KEY")
-BASE_HEROKU_API_URL = "https://api.heroku.com"
+BASE_HEROKU_API_HOST = "api.heroku.com"
 WHITELISTED_RESTARTABLE_APPS = ["timeouter-test"]
 Dyno = namedtuple("Dyno", ["app", "dyno"])
 
@@ -50,7 +53,8 @@ def parse_dyno_from_event(event):
 
 
 def restart_dyno(dyno):
-    conn = http.client.HTTPSConnection(BASE_HEROKU_API_URL)
+    logger.info(f"Restarting {dyno.app} {dyno.dyno}")
+    conn = http.client.HTTPSConnection(BASE_HEROKU_API_HOST)
     conn.request(
         "DELETE",
         f"/apps/{dyno.app}/dynos/{dyno.dyno}",
@@ -63,6 +67,7 @@ def restart_dyno(dyno):
 
 
 def run():
+    logger.info("Server running")
     server_address = ("", 8000)
     httpd = HTTPServer(server_address, WebhookRequestHandler)
     httpd.serve_forever()
