@@ -6,6 +6,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import http.client
 import logging
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 HEROKU_API_KEY = os.environ.get("HEROKU_API_KEY")
@@ -35,9 +36,9 @@ def handle_webhook(body):
         f"Received webhook from Papertrail for saved search {saved_search_name}"
     )
     events = body["events"]
-    problem_dynos = []
+    problem_dynos = set()
     for event in events:
-        problem_dynos.append(parse_dyno_from_event(event))
+        problem_dynos.add(parse_dyno_from_event(event))
 
     # TODO: Do something to sanity check these events and make
     # sure we should actually restart
@@ -46,7 +47,9 @@ def handle_webhook(body):
         if dyno.app in WHITELISTED_RESTARTABLE_APPS:
             restart_dyno(dyno)
         else:
-            logger.info("Dyno {dyno.app} {dyno.dyno} is timing out but is not whitelisted for restarting")
+            logger.info(
+                "Dyno {dyno.app} {dyno.dyno} is timing out but is not whitelisted for restarting"
+            )
 
 
 def parse_dyno_from_event(event):
@@ -70,6 +73,9 @@ def restart_dyno(dyno):
             "Authorization": f"Bearer {HEROKU_API_KEY}",
         },
     )
+    res = conn.getresponse()
+    if res.status == 200:
+        logger.info("Dyno {dyno.app} {dyno.dyno} successfully restarted")
 
 
 def run():
