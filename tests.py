@@ -2,44 +2,35 @@ import unittest
 from main import Dyno, parse_dyno_from_event
 
 TEST_PAYLOAD = {
-    "events": [
-        {
-            "id": 7711561783320576,
-            "received_at": "2011-05-18T20:30:02-07:00",
-            "display_received_at": "May 18 20:30:02",
-            "source_ip": "208.75.57.121",
-            "source_name": "abc",
-            "source_id": 2,
-            "hostname": "app-test",
-            "program": "CROND",
-            "severity": "Info",
-            "facility": "Cron",
-            "message": 'sock=backend at=error code=H18 desc="Server Request Interrupted" method=POST path="/inc/md5.asp" host=www.nesta.org.uk request_id=32515736-2fd7-46bc-b722-78860110de1d fwd="240e:d9:c200:104:85c5::ec0,172.69.34.65" dyno=web.1 connect=0ms service=44ms status=503 bytes= protocol=https',
+    {
+        "max_id": "1172555559466221570",
+        "min_id": "1172555559466221570",
+        "frequency": "minute",
+        "saved_search": {
+            "id": 47359282,
+            "name": "HTTP 5xx Alert",
+            "query": '" status=5" -gwripoff -autodiscover.xml',
+            "html_edit_url": "https://papertrailapp.com/heroku/go/1795056651?a=app94231806&app=nesta-production&s=edit&search_id=47359282",
+            "html_search_url": "https://papertrailapp.com/heroku/go/1795056651?a=app94231806&app=nesta-production&search_id=47359282",
         },
-        {
-            "id": 7711562567655424,
-            "received_at": "2011-05-18T20:30:02-07:00",
-            "display_received_at": "May 18 20:30:02",
-            "source_ip": "208.75.57.120",
-            "source_name": "server1",
-            "source_id": 19,
-            "hostname": "def",
-            "program": "CROND",
-            "severity": "Info",
-            "facility": "Cron",
-            "message": "A short event",
-        },
-    ],
-    "saved_search": {
-        "id": 42,
-        "name": "Important stuff",
-        "query": "cron OR server1",
-        "html_edit_url": "https://papertrailapp.com/searches/42/edit",
-        "html_search_url": "https://papertrailapp.com/searches/42",
-    },
-    "max_id": 7711582041804800,
-    "min_id": 7711561783320576,
-    "frequency": "1 minute",
+        "events": [
+            {
+                "id": 1172555559466221570,
+                "message": 'at=error code=H12 desc="Request timeout" method=GET path="/timeout" host=timeouter-test.herokuapp.com request_id=6eb9db3e-13ed-41e3-ab78-083ca0c89828 fwd="146.200.199.39" dyno=web.1 connect=0ms service=30001ms status=503 bytes=0 protocol=https\n',
+                "program": "heroku/router",
+                "source_ip": "54.152.45.17",
+                "facility": "",
+                "severity": "",
+                "hostname": "timeouter-test",
+                "source_name": "timeouter-test",
+                "source_id": 5174160982,
+                "display_received_at": "Mar  6 12:04:12 GMT",
+                "received_at": "2020-03-06T12:04:12Z",
+            }
+        ],
+        "counts": None,
+        "min_time_at": "2020-03-06T12:04:12Z",
+    }
 }
 
 

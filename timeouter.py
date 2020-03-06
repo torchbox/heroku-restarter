@@ -8,15 +8,16 @@ class TimeouterRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/timeout":
             time.sleep(35)
 
-        self.send_reponse(200)
+        self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        self.wfile.write("Success")
+        self.wfile.write(b"Success")
 
 
 def run():
-    server_address = ("", os.environ.get("PORT"))
+    server_address = ("", int(os.environ.get("PORT", "8000")))
     httpd = HTTPServer(server_address, TimeouterRequestHandler)
+    print("Starting server")
     httpd.serve_forever()
 
 
