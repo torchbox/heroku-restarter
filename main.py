@@ -125,7 +125,7 @@ def handle_webhook(body):
                     send_slack_message(f"Heroku Restarter has restarted {dyno}")
             except RequestError as e:
                 logger.error(
-                    f"Request to {e.request_url} returned status {e.response.status}: {e}"
+                    f"While restarting {dyno}, request to {e.request_url} returned status {e.response.status}: {e}"
                 )
 
 
