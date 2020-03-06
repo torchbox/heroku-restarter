@@ -1,12 +1,12 @@
-import os
-import json
-from datetime import datetime, timedelta, timezone
-from dataclasses import dataclass
-from urllib.parse import parse_qs, urlparse
-from collections import Counter
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import http.client
+import json
 import logging
+import os
+from collections import Counter
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,6 +25,13 @@ HEROKU_HEADERS = {
 }
 
 
+class RequestError(Exception):
+    def __init__(self, *args, **kwargs):
+        self.response = kwargs.pop("response")
+        self.request_url = kwargs.pop("request_url")
+        super().__init__(*args, **kwargs)
+
+
 @dataclass(eq=True, frozen=True)
 class Dyno:
     app: str
@@ -37,7 +44,7 @@ class Dyno:
         status = self.status()
         if status["state"] == "starting":
             logger.warning(
-                f"Dyno {dyno} should not restart as it is in a 'starting' state"
+                f"Dyno {self} should not restart as it is in a 'starting' state"
             )
             return False
 
@@ -45,7 +52,7 @@ class Dyno:
             status["created_at"], "%Y-%m-%dT%H:%M:%S%z"
         ) >= datetime.now(timezone.utc) - timedelta(minutes=2):
             logger.warning(
-                f"Dyno {dyno} should not restart as it was created less than 2 minutes ago"
+                f"Dyno {self} should not restart as it was created less than 2 minutes ago"
             )
             return False
 
@@ -55,7 +62,7 @@ class Dyno:
         for system in heroku_status["status"]:
             if system == "Apps" and status == "red":
                 logger.warning(
-                    f"Dyno {dyno} should not restart as there is an ongoing Heroku outage"
+                    f"Dyno {self} should not restart as there is an ongoing Heroku outage"
                 )
                 return False
 
@@ -67,11 +74,7 @@ class Dyno:
             f"{BASE_HEROKU_API_URL}/apps/{self.app}/dynos/{self.dyno}",
             headers=HEROKU_HEADERS,
         )
-        if res.status == 200:
-            logger.info("Dyno {dyno} successfully restarted")
-            return True
-
-        return False
+        logger.info("Dyno {dyno} successfully restarted")
 
     def status(self):
         res = do_request(
@@ -103,10 +106,7 @@ def handle_webhook(body):
         f"Received webhook from Papertrail for saved search {saved_search_name}"
     )
     events = body["events"]
-    problem_dynos = Counter()
-    for event in events:
-        dyno = parse_dyno_from_event(event)
-        problem_dynos[dyno] += 1
+    problem_dynos = Counter(parse_dyno_from_event(event) for event in events)
 
     for dyno, event_count in problem_dynos.items():
         if dyno.app not in WHITELISTED_RESTARTABLE_APPS:
@@ -118,10 +118,15 @@ def handle_webhook(body):
                 f"Dyno {dyno} is timing out but has not met the restart threshold"
             )
         else:
-            if dyno.should_restart():
-                logger.info(f"Restarting {dyno}")
-                dyno.restart()
-                send_slack_message(f"Heroku Restarter has restarted {dyno}")
+            try:
+                if dyno.should_restart():
+                    logger.info(f"Restarting {dyno}")
+                    dyno.restart()
+                    send_slack_message(f"Heroku Restarter has restarted {dyno}")
+            except RequestError as e:
+                logger.error(
+                    f"Request to {e.request_url} returned status {e.response.status}: {e}"
+                )
 
 
 def parse_dyno_from_event(event):
@@ -147,6 +152,9 @@ def do_request(method, url, **kwargs):
     conn = http.client.HTTPSConnection(url_parts.netloc)
     conn.request(method, url_parts.path, **kwargs)
     res = conn.getresponse()
+    if res.status > 299:
+        raise RequestError(res.read().decode("utf-8"), response=res, request_url=url)
+
     return res
 
 
@@ -159,4 +167,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
