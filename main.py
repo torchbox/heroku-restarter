@@ -15,7 +15,10 @@ logger = logging.getLogger(__name__)
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
 HEROKU_API_KEY = os.environ.get("HEROKU_API_KEY")
 BASE_HEROKU_API_URL = "https://api.heroku.com"
-WHITELISTED_RESTARTABLE_APPS = ["timeouter-test"]
+WHITELISTED_APPS = os.environ.get("WHITELISTED_APPS", "").split(",")
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", ""
+)  # Key used to authorise requests to this endpoint
 EVENT_THRESHOLD = 2  # Only restart if there are at least this many events for a dyno
 
 HEROKU_HEADERS = {
@@ -87,6 +90,11 @@ class Dyno:
 
 class WebhookRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
+        url_parts = urlparse(self.path)
+        querystring = parse_qs(url_parts.query)
+        if querystring["key"] != SECRET_KEY:
+            self.send_response(403)
+
         content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length)
         payload = parse_qs(post_data)[b"payload"][0]
@@ -109,7 +117,7 @@ def handle_webhook(body):
     problem_dynos = Counter(parse_dyno_from_event(event) for event in events)
 
     for dyno, event_count in problem_dynos.items():
-        if dyno.app not in WHITELISTED_RESTARTABLE_APPS:
+        if dyno.app not in WHITELISTED_APPS:
             logger.info(
                 f"Dyno {dyno} is timing out but is not whitelisted for restarting"
             )
