@@ -1,6 +1,6 @@
 FROM python:3.8
 
 WORKDIR /app
-COPY timeouter.py /app/
+COPY main.py /app/
 
-CMD python timeouter.py
+CMD python main.py

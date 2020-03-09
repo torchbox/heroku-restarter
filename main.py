@@ -172,7 +172,7 @@ def do_request(method, url, **kwargs):
 
 def run():
     logger.info("Server running")
-    server_address = ("", 8000)
+    server_address = ("", int(os.environ.get("PORT", "8000")))
     httpd = HTTPServer(server_address, WebhookRequestHandler)
     httpd.serve_forever()
 
