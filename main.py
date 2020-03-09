@@ -89,21 +89,25 @@ class Dyno:
 
 
 class WebhookRequestHandler(BaseHTTPRequestHandler):
+    def send_html_response(self, status, body):
+        self.send_response(status)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_POST(self):
         url_parts = urlparse(self.path)
         querystring = parse_qs(url_parts.query)
-        if querystring["key"] != SECRET_KEY:
-            self.send_response(403)
+        if querystring.get("key", [])[0] != SECRET_KEY:
+            self.send_html_response(403, b"Incorrect key")
+            return
 
         content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length)
         payload = parse_qs(post_data)[b"payload"][0]
         parsed_payload = json.loads(payload)
         handle_webhook(parsed_payload)
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(b"Success")
+        self.send_html_response(200, b"Success")
 
 
 def handle_webhook(body):
