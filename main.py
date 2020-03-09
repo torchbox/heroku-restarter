@@ -60,7 +60,7 @@ class Dyno:
             do_request("GET", "https://status.heroku.com/api/v4/current-status").read()
         )
         for system in heroku_status["status"]:
-            if system == "Apps" and status == "red":
+            if system["system"] == "Apps" and system["status"] == "red":
                 logger.warning(
                     f"Dyno {self} should not restart as there is an ongoing Heroku outage"
                 )
