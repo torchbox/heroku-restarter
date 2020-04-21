@@ -8,9 +8,9 @@ TEST_PAYLOAD = {
     "saved_search": {
         "id": 47359282,
         "name": "HTTP 5xx Alert",
-        "query": '" status=5" -gwripoff -autodiscover.xml',
-        "html_edit_url": "https://papertrailapp.com/heroku/go/1795056651?a=app94231806&app=nesta-production&s=edit&search_id=47359282",
-        "html_search_url": "https://papertrailapp.com/heroku/go/1795056651?a=app94231806&app=nesta-production&search_id=47359282",
+        "query": '" status=5"',
+        "html_edit_url": "https://papertrailapp.com/heroku/go/123?a=app123&app=test-app&s=edit&search_id=123",
+        "html_search_url": "https://papertrailapp.com/heroku/go/123?a=app123&app=test-app&search_id=123",
     },
     "events": [
         {
