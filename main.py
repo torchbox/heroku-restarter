@@ -2,6 +2,7 @@ import http.client
 import json
 import logging
 import os
+import fnmatch
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
 HEROKU_API_KEY = os.environ.get("HEROKU_API_KEY")
 BASE_HEROKU_API_URL = "https://api.heroku.com"
-WHITELISTED_APPS = os.environ.get("WHITELISTED_APPS", "").split(",")
+ALLOWLIST_APP_PATTERNS = os.environ.get("ALLOWLIST_APP_PATTERNS", "").split(",")
 SECRET_KEY = os.environ.get(
     "SECRET_KEY", ""
 )  # Key used to authorise requests to this endpoint
@@ -110,6 +111,15 @@ class WebhookRequestHandler(BaseHTTPRequestHandler):
         self.send_html_response(200, b"Success")
 
 
+def app_is_in_allowlist(app):
+    """ Check whether the given app name matches a pattern
+    in the allowlist """
+    for pattern in ALLOWLIST_APP_PATTERNS:
+        if fnmatch.fnmatch(app, pattern):
+            return True
+    return False
+
+
 def handle_webhook(body):
     """ Given the body of a webhook from Papertrail, determine 
     which dynos are affected and trigger restarts if applicable """
@@ -121,9 +131,9 @@ def handle_webhook(body):
     problem_dynos = Counter(parse_dyno_from_event(event) for event in events)
 
     for dyno, event_count in problem_dynos.items():
-        if dyno.app not in WHITELISTED_APPS:
+        if not app_is_in_allowlist(dyno.app):
             logger.info(
-                f"Dyno {dyno} is timing out but is not whitelisted for restarting"
+                f"Dyno {dyno} is timing out but does not match an allowlisted pattern restarting"
             )
         elif event_count < EVENT_THRESHOLD:
             logger.info(
