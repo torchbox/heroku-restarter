@@ -1,5 +1,6 @@
 import unittest
-from main import Dyno, parse_dyno_from_event
+import main
+from main import Dyno, parse_dyno_from_event, app_is_in_allowlist
 
 TEST_PAYLOAD = {
     "max_id": "1172555559466221570",
@@ -38,6 +39,18 @@ class TestAppDynoParser(unittest.TestCase):
         parsed = parse_dyno_from_event(event)
         expected = Dyno(app="timeouter-test", dyno="web.1")
         self.assertEqual(parsed, expected)
+
+
+class TestAllowlist(unittest.TestCase):
+    def test_allowlist_matches_valid(self):
+        main.ALLOWLIST_APP_PATTERNS = ["*-production"]
+        matches = app_is_in_allowlist("test-production")
+        self.assertTrue(matches)
+
+    def test_allowlist_matches_invalid(self):
+        main.ALLOWLIST_APP_PATTERNS = ["*-production"]
+        matches = app_is_in_allowlist("test-staging")
+        self.assertFalse(matches)
 
 
 if __name__ == "__main__":
