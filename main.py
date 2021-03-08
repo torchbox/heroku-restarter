@@ -78,7 +78,7 @@ class Dyno:
             f"{BASE_HEROKU_API_URL}/apps/{self.app}/dynos/{self.dyno}",
             headers=HEROKU_HEADERS,
         )
-        logger.info("Dyno {dyno} successfully restarted")
+        logger.info(f"Dyno {self.dyno} successfully restarted")
 
     def status(self):
         res = do_request(
