@@ -1,13 +1,12 @@
-import http.client
-import json
 import logging
 import os
 import fnmatch
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qs, urlparse
+import flask
+import secrets
+import requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,14 +26,6 @@ HEROKU_HEADERS = {
     "Accept": "application/vnd.heroku+json; version=3",
     "Authorization": f"Bearer {HEROKU_API_KEY}",
 }
-
-
-class RequestError(Exception):
-    def __init__(self, *args, **kwargs):
-        self.response = kwargs.pop("response")
-        self.request_url = kwargs.pop("request_url")
-        super().__init__(*args, **kwargs)
-
 
 @dataclass(eq=True, frozen=True)
 class Dyno:
@@ -60,9 +51,7 @@ class Dyno:
             )
             return False
 
-        heroku_status = json.loads(
-            do_request("GET", "https://status.heroku.com/api/v4/current-status").read()
-        )
+        heroku_status = do_request("GET", "https://status.heroku.com/api/v4/current-status").json()
         for system in heroku_status["status"]:
             if system["system"] == "Apps" and system["status"] == "red":
                 logger.warning(
@@ -73,7 +62,7 @@ class Dyno:
         return True
 
     def restart(self):
-        res = do_request(
+        do_request(
             "DELETE",
             f"{BASE_HEROKU_API_URL}/apps/{self.app}/dynos/{self.dyno}",
             headers=HEROKU_HEADERS,
@@ -86,29 +75,18 @@ class Dyno:
             f"{BASE_HEROKU_API_URL}/apps/{self.app}/dynos/{self.dyno}",
             headers=HEROKU_HEADERS,
         )
-        return json.loads(res.read())
+        return res.json()
 
+app = flask.Flask(__name__)
 
-class WebhookRequestHandler(BaseHTTPRequestHandler):
-    def send_html_response(self, status, body):
-        self.send_response(status)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(body)
+@app.get("/")
+def index():
+    if not secrets.compare_digest(flask.request.args.get("key", ""), SECRET_KEY):
+        return "Incorrect key", 403
 
-    def do_POST(self):
-        url_parts = urlparse(self.path)
-        querystring = parse_qs(url_parts.query)
-        if querystring.get("key", [])[0] != SECRET_KEY:
-            self.send_html_response(403, b"Incorrect key")
-            return
+    handle_webhook(flask.request.json)
 
-        content_length = int(self.headers["Content-Length"])
-        post_data = self.rfile.read(content_length)
-        payload = parse_qs(post_data)[b"payload"][0]
-        parsed_payload = json.loads(payload)
-        handle_webhook(parsed_payload)
-        self.send_html_response(200, b"Success")
+    return "Success", 200
 
 
 def app_is_in_allowlist(app):
@@ -121,7 +99,7 @@ def app_is_in_allowlist(app):
 
 
 def handle_webhook(body):
-    """ Given the body of a webhook from Papertrail, determine 
+    """ Given the body of a webhook from Papertrail, determine
     which dynos are affected and trigger restarts if applicable """
     saved_search_name = body["saved_search"]["name"]
     logger.info(
@@ -145,9 +123,9 @@ def handle_webhook(body):
                     logger.info(f"Restarting {dyno}")
                     dyno.restart()
                     send_slack_message(f"Heroku Restarter has restarted {dyno}")
-            except RequestError as e:
-                logger.error(
-                    f"While restarting {dyno}, request to {e.request_url} returned status {e.response.status}: {e}"
+            except requests.HTTPError as e:
+                logger.exception(
+                    f"While restarting {dyno}, request to {e.request.url} returned status {e.response.status_code}"
                 )
 
 
@@ -164,28 +142,14 @@ def send_slack_message(message):
     do_request(
         "POST",
         SLACK_WEBHOOK_URL,
-        body=json.dumps({"text": message}),
+        json={"text": message},
         headers={"Content-type": "application/json"},
     )
 
 
 def do_request(method, url, **kwargs):
-    url_parts = urlparse(url)
-    conn = http.client.HTTPSConnection(url_parts.netloc)
-    conn.request(method, url_parts.path, **kwargs)
-    res = conn.getresponse()
-    if res.status > 299:
-        raise RequestError(res.read().decode("utf-8"), response=res, request_url=url)
+    response = requests.request(method, url, **kwargs)
 
-    return res
+    response.raise_for_status()
 
-
-def run():
-    logger.info("Server running")
-    server_address = ("", int(os.environ.get("PORT", "8000")))
-    httpd = HTTPServer(server_address, WebhookRequestHandler)
-    httpd.serve_forever()
-
-
-if __name__ == "__main__":
-    run()
+    return response
