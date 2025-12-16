@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import flask
 import secrets
 import requests
+import sentry_sdk
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +27,10 @@ HEROKU_HEADERS = {
     "Accept": "application/vnd.heroku+json; version=3",
     "Authorization": f"Bearer {HEROKU_API_KEY}",
 }
+
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN")
+)
 
 @dataclass(eq=True, frozen=True)
 class Dyno:
