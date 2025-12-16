@@ -84,7 +84,7 @@ class Dyno:
 
 app = flask.Flask(__name__)
 
-@app.get("/")
+@app.post("/")
 def index():
     if not secrets.compare_digest(flask.request.args.get("key", ""), SECRET_KEY):
         return "Incorrect key", 403
