@@ -144,6 +144,9 @@ def parse_dyno_from_event(event):
     attribute_pairs = event.get("message").split(" ")
     attributes = dict((attr.split("=") + [""])[:2] for attr in attribute_pairs)
     dyno = attributes.get("dyno")
+    if dyno is None:
+        # Fall back to extracting from program
+        dyno = event["program"].split("/", 1)[1]
     return Dyno(app=app, dyno=dyno)
 
 
