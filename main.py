@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 import fnmatch
 from collections import Counter
@@ -89,7 +90,10 @@ def index():
     if not secrets.compare_digest(flask.request.args.get("key", ""), SECRET_KEY):
         return "Incorrect key", 403
 
-    handle_webhook(flask.request.json)
+    # The payload is JSON-encoded data in a url-encoded form.
+    payload = json.loads(flask.request.form["payload"])
+
+    handle_webhook(payload)
 
     return "Success", 200
 
