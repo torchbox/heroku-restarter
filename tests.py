@@ -26,7 +26,20 @@ TEST_PAYLOAD = {
             "source_id": 5174160982,
             "display_received_at": "Mar  6 12:04:12 GMT",
             "received_at": "2020-03-06T12:04:12Z",
-        }
+        },
+        {
+            "id": 1172555559466221571,
+            "message": 'Error R14 (Memory quota exceeded)\n',
+            "program": "heroku/web.1",
+            "source_ip": "54.152.45.17",
+            "facility": "",
+            "severity": "",
+            "hostname": "timeouter-test",
+            "source_name": "timeouter-test",
+            "source_id": 5174160981,
+            "display_received_at": "Mar  6 12:04:12 GMT",
+            "received_at": "2020-03-06T12:04:12Z",
+        },
     ],
     "counts": None,
     "min_time_at": "2020-03-06T12:04:12Z",
@@ -34,8 +47,16 @@ TEST_PAYLOAD = {
 
 
 class TestAppDynoParser(unittest.TestCase):
-    def test_parses_valid_message(self):
+    def test_parses_H12(self):
         event = TEST_PAYLOAD["events"][0]
+        self.assertIn("H12", event["message"])
+        parsed = parse_dyno_from_event(event)
+        expected = Dyno(app="timeouter-test", dyno="web.1")
+        self.assertEqual(parsed, expected)
+
+    def test_parses_R14(self):
+        event = TEST_PAYLOAD["events"][1]
+        self.assertIn("R14", event["message"])
         parsed = parse_dyno_from_event(event)
         expected = Dyno(app="timeouter-test", dyno="web.1")
         self.assertEqual(parsed, expected)
